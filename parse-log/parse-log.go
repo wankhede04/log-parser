@@ -36,7 +36,7 @@ func ParseLogs(fileInfo cmdargs.FileInfo) {
 	scanner := bufio.NewScanner(content)
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 
 	//	run a channel to print game info
 	gameChannel := make(chan GameData)
@@ -45,6 +45,7 @@ func ParseLogs(fileInfo cmdargs.FileInfo) {
 	killChannel := make(chan KillData)
 	//run go routines to print game info in console and generate kill in specified file
 	go ReportRank(gameChannel, &wg)
+	go GenerateKillReport(killChannel, fileInfo, &wg)
 	defer wg.Wait()
 
 	gameNumber := 0
@@ -63,7 +64,7 @@ func ParseLogs(fileInfo cmdargs.FileInfo) {
 			gameInfo, killInfo = ReadGameInfo(scanner, "game_"+strconv.FormatInt(int64(gameNumber), 10))
 			// send parsed info to go their respective go routines
 			gameChannel <- gameInfo
-			fmt.Println(killInfo.GameName)
+			killChannel <- killInfo
 		}
 	}
 

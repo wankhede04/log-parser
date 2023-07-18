@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 
 	cmdargs "github.com/m/v2/cmd-args"
 )
@@ -34,6 +35,18 @@ func ParseLogs(fileInfo cmdargs.FileInfo) {
 	//	create scanner object to read file line by line
 	scanner := bufio.NewScanner(content)
 
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	//	run a channel to print game info
+	gameChannel := make(chan GameData)
+
+	//	run a channel to pass kill info
+	killChannel := make(chan KillData)
+	//run go routines to print game info in console and generate kill in specified file
+	go ReportRank(gameChannel, &wg)
+	defer wg.Wait()
+
 	gameNumber := 0
 
 	var gameInfo GameData
@@ -48,8 +61,13 @@ func ParseLogs(fileInfo cmdargs.FileInfo) {
 			gameNumber++
 			//	read info of a particular game
 			gameInfo, killInfo = ReadGameInfo(scanner, "game_"+strconv.FormatInt(int64(gameNumber), 10))
-			fmt.Println(gameInfo.GameName)
+			// send parsed info to go their respective go routines
+			gameChannel <- gameInfo
 			fmt.Println(killInfo.GameName)
 		}
 	}
+
+	//	close the channels to stop printing info
+	close(gameChannel)
+	close(killChannel)
 }
